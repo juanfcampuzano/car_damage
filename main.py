@@ -90,7 +90,7 @@ cfg_mul['MODEL']['DEVICE']='cpu' #or cpu
 part_predictor = DefaultPredictor(cfg_mul)
 
 
-@app.post("/predict/")
+@app.post("/api/predict/")
 async def predict(file: UploadFile = File(...)):
     im = np.array(Image.open(BytesIO(await file.read())))
 
@@ -105,3 +105,7 @@ async def predict(file: UploadFile = File(...)):
     parts_polygon_centers_filtered = list(filter(lambda x: x[0] < 800 and x[1] < 800, parts_polygon_centers))
     parts_dict = dict(zip(parts_prediction_classes,parts_polygon_centers_filtered))
     return "Damaged Parts: " + str(detect_damage_part(damage_dict,parts_dict))
+
+@app.get("/api/test")
+async def test():
+ return "Hello World!"
