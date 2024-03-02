@@ -47,6 +47,28 @@ async def startup_event():
       s3.download_file(AWS_BUCKET_NAME, 'part_segmentation_model.pth', 'models/part_segmentation_model.pth')
   except Exception as e:
       raise HTTPException(status_code=500, detail=str(e))
+  
+  damage_class_map= {0:'damage'}
+  parts_class_map={0:'headlamp',1:'rear_bumper', 2:'door', 3:'hood', 4: 'front_bumper'}
+
+  cfg = get_cfg()
+  cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+  cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2  # only has one class (damage) + 1
+  cfg.MODEL.RETINANET.NUM_CLASSES = 2 # only has one class (damage) + 1
+  cfg.MODEL.WEIGHTS = os.path.join("models/damage_segmentation_model.pth")
+  cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7 
+  cfg['MODEL']['DEVICE']='cpu'#or cpu
+  damage_predictor = DefaultPredictor(cfg)
+
+
+  cfg_mul = get_cfg()
+  cfg_mul.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+  cfg_mul.MODEL.ROI_HEADS.NUM_CLASSES = 6  # only has five classes (headlamp,hood,rear_bumper,front_bumper_door) + 1
+  cfg_mul.MODEL.RETINANET.NUM_CLASSES = 6 # only has five classes (headlamp,hood,rear_bumper,front_bumper_door) + 1
+  cfg_mul.MODEL.WEIGHTS = os.path.join("models/part_segmentation_model.pth")
+  cfg_mul.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7 
+  cfg_mul['MODEL']['DEVICE']='cpu' #or cpu
+  part_predictor = DefaultPredictor(cfg_mul)
 
 def detect_damage_part(damage_dict, parts_dict):
   try:
@@ -67,27 +89,6 @@ def detect_damage_part(damage_dict, parts_dict):
     print(e)
 
 
-damage_class_map= {0:'damage'}
-parts_class_map={0:'headlamp',1:'rear_bumper', 2:'door', 3:'hood', 4: 'front_bumper'}
-
-cfg = get_cfg()
-cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2  # only has one class (damage) + 1
-cfg.MODEL.RETINANET.NUM_CLASSES = 2 # only has one class (damage) + 1
-cfg.MODEL.WEIGHTS = os.path.join("models/damage_segmentation_model.pth")
-cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7 
-cfg['MODEL']['DEVICE']='cpu'#or cpu
-damage_predictor = DefaultPredictor(cfg)
-
-
-cfg_mul = get_cfg()
-cfg_mul.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-cfg_mul.MODEL.ROI_HEADS.NUM_CLASSES = 6  # only has five classes (headlamp,hood,rear_bumper,front_bumper_door) + 1
-cfg_mul.MODEL.RETINANET.NUM_CLASSES = 6 # only has five classes (headlamp,hood,rear_bumper,front_bumper_door) + 1
-cfg_mul.MODEL.WEIGHTS = os.path.join("models/part_segmentation_model.pth")
-cfg_mul.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7 
-cfg_mul['MODEL']['DEVICE']='cpu' #or cpu
-part_predictor = DefaultPredictor(cfg_mul)
 
 
 @app.post("/api/predict/")
