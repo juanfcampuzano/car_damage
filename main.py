@@ -1,7 +1,4 @@
 import skimage.io as io
-from detectron2 import model_zoo
-from detectron2.config import get_cfg
-from detectron2.engine import DefaultPredictor
 import os
 import boto3
 from scipy.spatial import distance
@@ -24,12 +21,22 @@ s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_k
 
 @app.on_event("startup")
 async def startup_event():
-    try:
-        os.makedirs("models", exist_ok=True)
-        s3.download_file(AWS_BUCKET_NAME, 'damage_segmentation_model.pth', 'models/damage_segmentation_model.pth')
-        s3.download_file(AWS_BUCKET_NAME, 'part_segmentation_model.pth', 'models/part_segmentation_model.pth')
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+  
+  try:
+    from detectron2 import model_zoo
+  except ImportError:
+    print("Detectron2 no encontrado. Instalando detectron2...")
+    os.system("pip install -U 'git+https://github.com/facebookresearch/detectron2.git'")
+    from detectron2 import model_zoo
+    from detectron2.config import get_cfg
+    from detectron2.engine import DefaultPredictor
+
+  try:
+      os.makedirs("models", exist_ok=True)
+      s3.download_file(AWS_BUCKET_NAME, 'damage_segmentation_model.pth', 'models/damage_segmentation_model.pth')
+      s3.download_file(AWS_BUCKET_NAME, 'part_segmentation_model.pth', 'models/part_segmentation_model.pth')
+  except Exception as e:
+      raise HTTPException(status_code=500, detail=str(e))
 
 def detect_damage_part(damage_dict, parts_dict):
   try:
