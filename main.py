@@ -32,16 +32,15 @@ if not all([AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_BUCKET_NAME]):
 
 s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_key=AWS_SECRET_ACCESS_KEY)
 
-@app.on_event("startup")
-async def startup_event():
-  
-  try:
-      os.makedirs("models", exist_ok=True)
-      s3.download_file(AWS_BUCKET_NAME, 'damage_segmentation_model.pth', 'models/damage_segmentation_model.pth')
-      s3.download_file(AWS_BUCKET_NAME, 'part_segmentation_model.pth', 'models/part_segmentation_model.pth')
-  except Exception as e:
-      raise HTTPException(status_code=500, detail=str(e))
-  
+try:
+  os.makedirs("models", exist_ok=True)
+  print('Descargando modelos')
+  s3.download_file(AWS_BUCKET_NAME, 'damage_segmentation_model.pth', 'models/damage_segmentation_model.pth')
+  s3.download_file(AWS_BUCKET_NAME, 'part_segmentation_model.pth', 'models/part_segmentation_model.pth')
+  print('Modelos descargados')
+except Exception as e:
+    raise HTTPException(status_code=500, detail=str(e))
+
 damage_class_map= {0:'damage'}
 parts_class_map={0:'headlamp',1:'rear_bumper', 2:'door', 3:'hood', 4: 'front_bumper'}
 
