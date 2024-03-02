@@ -1,8 +1,8 @@
 python-multipart
-torch, priority
+torch, git+https://github.com/facebookresearch/detectron2.git
 torchvision
 scikit-image
 fastapi
 boto3
 uvicorn[standard]
-git+https://github.com/facebookresearch/detectron2.git
+
