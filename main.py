@@ -8,6 +8,9 @@ import numpy as np
 from PIL import Image
 from io import BytesIO
 from pydantic import BaseModel
+from detectron2 import model_zoo
+from detectron2.config import get_cfg
+from detectron2.engine import DefaultPredictor
 
 app = FastAPI()
 
@@ -33,42 +36,33 @@ s3 = boto3.client('s3', aws_access_key_id=AWS_ACCESS_KEY_ID, aws_secret_access_k
 async def startup_event():
   
   try:
-    from detectron2 import model_zoo
-  except ImportError:
-    print("Detectron2 no encontrado. Instalando detectron2...")
-    os.system("pip install -U 'git+https://github.com/facebookresearch/detectron2.git'")
-    from detectron2 import model_zoo
-    from detectron2.config import get_cfg
-    from detectron2.engine import DefaultPredictor
-
-  try:
       os.makedirs("models", exist_ok=True)
       s3.download_file(AWS_BUCKET_NAME, 'damage_segmentation_model.pth', 'models/damage_segmentation_model.pth')
       s3.download_file(AWS_BUCKET_NAME, 'part_segmentation_model.pth', 'models/part_segmentation_model.pth')
   except Exception as e:
       raise HTTPException(status_code=500, detail=str(e))
   
-  damage_class_map= {0:'damage'}
-  parts_class_map={0:'headlamp',1:'rear_bumper', 2:'door', 3:'hood', 4: 'front_bumper'}
+damage_class_map= {0:'damage'}
+parts_class_map={0:'headlamp',1:'rear_bumper', 2:'door', 3:'hood', 4: 'front_bumper'}
 
-  cfg = get_cfg()
-  cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-  cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2  # only has one class (damage) + 1
-  cfg.MODEL.RETINANET.NUM_CLASSES = 2 # only has one class (damage) + 1
-  cfg.MODEL.WEIGHTS = os.path.join("models/damage_segmentation_model.pth")
-  cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7 
-  cfg['MODEL']['DEVICE']='cpu'#or cpu
-  damage_predictor = DefaultPredictor(cfg)
+cfg = get_cfg()
+cfg.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+cfg.MODEL.ROI_HEADS.NUM_CLASSES = 2  # only has one class (damage) + 1
+cfg.MODEL.RETINANET.NUM_CLASSES = 2 # only has one class (damage) + 1
+cfg.MODEL.WEIGHTS = os.path.join("models/damage_segmentation_model.pth")
+cfg.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7 
+cfg['MODEL']['DEVICE']='cpu'#or cpu
+damage_predictor = DefaultPredictor(cfg)
 
 
-  cfg_mul = get_cfg()
-  cfg_mul.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
-  cfg_mul.MODEL.ROI_HEADS.NUM_CLASSES = 6  # only has five classes (headlamp,hood,rear_bumper,front_bumper_door) + 1
-  cfg_mul.MODEL.RETINANET.NUM_CLASSES = 6 # only has five classes (headlamp,hood,rear_bumper,front_bumper_door) + 1
-  cfg_mul.MODEL.WEIGHTS = os.path.join("models/part_segmentation_model.pth")
-  cfg_mul.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7 
-  cfg_mul['MODEL']['DEVICE']='cpu' #or cpu
-  part_predictor = DefaultPredictor(cfg_mul)
+cfg_mul = get_cfg()
+cfg_mul.merge_from_file(model_zoo.get_config_file("COCO-InstanceSegmentation/mask_rcnn_R_50_FPN_3x.yaml"))
+cfg_mul.MODEL.ROI_HEADS.NUM_CLASSES = 6  # only has five classes (headlamp,hood,rear_bumper,front_bumper_door) + 1
+cfg_mul.MODEL.RETINANET.NUM_CLASSES = 6 # only has five classes (headlamp,hood,rear_bumper,front_bumper_door) + 1
+cfg_mul.MODEL.WEIGHTS = os.path.join("models/part_segmentation_model.pth")
+cfg_mul.MODEL.ROI_HEADS.SCORE_THRESH_TEST = 0.7 
+cfg_mul['MODEL']['DEVICE']='cpu' #or cpu
+part_predictor = DefaultPredictor(cfg_mul)
 
 def detect_damage_part(damage_dict, parts_dict):
   try:
