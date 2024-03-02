@@ -1,3 +1,4 @@
+torch
 python-multipart
 torchvision
 scikit-image
